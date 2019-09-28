@@ -88,22 +88,24 @@ contract ZkFluxBallot is Owned {   // should be operated
     Members.Data public members;  // not public
 
     struct Vote {
-        bytes message;
-        uint256 timestamp;
+      bytes message;
+      timestamp uint256;
     }
+    // Vote Keys to Vote
+    mapping (bytes32 => Vote) votes;
 
     struct Ballot {
-        // address proposer;  // not included
         string description;
-        Vote[] votes;
+        bytes32[] voteKeys;
         bool open;
         uint256 initiated;
         uint256 closed;  // timestamp closed, could be based on enddate only??
-        // uint256 startDate;  // optional
-        // uint256 endDate;
-        // what else would a round of votes have??
     }
+
     Ballot[] public ballots;
+
+    // List of ephemeral identities used to vote
+    mapping (address => bool) identities;
 
     // The external_nullifier helps to prevent double-signalling by the same
     // user.
@@ -169,14 +171,26 @@ contract ZkFluxBallot is Owned {   // should be operated
         return members.index[_index];
     }
 
+    // Add voting identity
+    // is this just the same as voting? or a change identity commitment?
+    function insertIdentity ( uint256 ballotId, bytes memory message) public {
+      Ballot storage ballot = ballots[ballotId];
+      require(ballot.open);
+      // insert(identity_commitment);
+    }
+    // is this just the same as voting? or a change identity commitment?
+    function updateIdentity ( uint256 ballotId, bytes memory message) public {
+      Ballot storage ballot = ballots[ballotId];
+      require(ballot.open);
+      // insert(identity_commitment);
+    }
+
     // Ballot functions
     function newBallot (string memory _description) public onlyOwner returns (uint256 ballotId) {  // should be operators
-        Vote[] memory _votes;
-
         Ballot memory ballot = Ballot({
               // proposer: msg.sender,
               description: _description,
-              votes: _votes,
+              voteKeys: new bytes32[](0),
               open: true,
               initiated: now,
               closed: 0
@@ -253,7 +267,9 @@ contract ZkFluxBallot is Owned {   // should be operated
       Ballot storage ballot = ballots[ballotId];
       require(ballot.open);
       // add message to registry
-      ballot.votes[votesIndexLength(ballotId)] = Vote(signal, now);
+      key = voteHash(ballotId, nullifiers_hash, signal);  // change to proper hash
+      ballot.votes[votesIndexLength(ballotId)] = key;
+      votes[key] = Vote(signal, now);
       emit Voted(ballotId, signal, nullifiers_hash, externalNullifier);
     }
 
@@ -261,18 +277,10 @@ contract ZkFluxBallot is Owned {   // should be operated
     function votesIndexLength(uint256 ballotId) public view returns (uint) {
         return ballots[ballotId].votes.length;
     }
-
-    // is this just the same as voting? or a change identity commitment?
-    function insertIdentity ( uint256 ballotId, bytes memory message) public {
-      Ballot storage ballot = ballots[ballotId];
-      require(ballot.open);
-      // insert(identity_commitment);
-    }
-    // is this just the same as voting? or a change identity commitment?
-    function updateIdentity ( uint256 ballotId, bytes memory message) public {
-      Ballot storage ballot = ballots[ballotId];
-      require(ballot.open);
-      // insert(identity_commitment);
+    // Helper functions
+    function voteHash(uint256 ballotId, uint256 nullifiers_hash,  bytes memory signal) internal pure returns (bytes32) {
+        // return sha256( _message);    // salted?
+        return keccak256(abi.encodePacked(ballotId,nullifiers_hash, signal));   // changed to MiMC?
     }
 
     /*
@@ -283,8 +291,6 @@ contract ZkFluxBallot is Owned {   // should be operated
     function hasNullifier(uint n) public view returns (bool) {
         return nullifierHashHistory[n];
     }
-
-
 
     // Once the ballot has ended, the results counted and the result published
     function submitResults ( string memory zkproof , uint256 ballotId, bool result) public onlyOwner  {  // should be changed to operators
