@@ -20,9 +20,7 @@
 
 pragma solidity ^0.5.0;
 
-library MiMC {
-    function MiMCpe7(uint256 in_x, uint256 in_k) public pure returns (uint256 out_x);
-}
+import "../Dependencies/MiMC.sol";
 
 contract MerkleTree {
     uint8 treeLevel;
@@ -60,10 +58,10 @@ contract MerkleTree {
         uint256 R = 0;
 
         R = addmod(R, left, k);
-        R = MiMC.MiMCpe7(R, 0);
+        R = MiMC.MiMCpe7(R, 0, uint256(keccak256("mimc")), 91);
 
         R = addmod(R, right, k);
-        R = MiMC.MiMCpe7(R, 0);
+        R = MiMC.MiMCpe7(R, 0, uint256(keccak256("mimc")), 91);
 
         mimc_hash = R;
     }

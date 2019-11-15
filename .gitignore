@@ -9,3 +9,4 @@ private
 *.pyc
 build
 node_modules
+reports

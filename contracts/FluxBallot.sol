@@ -2,80 +2,13 @@
 pragma solidity ^0.5.4;
 
 
-import "./Dependencies/Verifier.sol";
+import "./Dependencies/Members.sol";
+import "./Dependencies/VerifierInterface.sol";
+import "./Dependencies/MiMCInterface.sol";
 import "./Dependencies/MerkleTree.sol";
 import "./Shared/Owned.sol";
 import "./Shared/Operated.sol";
 
-// Sample interfaces
-contract MiMC{
-    function MiMCpe7(uint256,uint256,uint256,uint256) public pure returns (uint256) {}
-}
-contract Verifier {
-  function verifyProof(
-          uint[2] memory a,
-          uint[2][2] memory b,
-          uint[2] memory c,
-          uint[12] memory input
-      ) public view returns (bool) {}
-}
-
-
-// ----------------------------------------------------------------------------
-// Membership Data Structure
-// ----------------------------------------------------------------------------
-library Members {
-    struct Member {
-        bool exists;
-        uint index;
-        string name;
-    }
-    struct Data {
-        bool initialised;
-        mapping(address => Member) entries;
-        address[] index;
-    }
-
-    event MemberAdded(address indexed memberAddress, string name, uint totalAfter);
-    event MemberRemoved(address indexed memberAddress, string name, uint totalAfter);
-    event MemberNameUpdated(address indexed memberAddress, string oldName, string newName);
-
-    function init(Data storage self) public {
-        require(!self.initialised);
-        self.initialised = true;
-    }
-    function isMember(Data storage self, address _address) public view returns (bool) {
-        return self.entries[_address].exists;
-    }
-    function add(Data storage self, address _address, string memory _name) public {
-        require(!self.entries[_address].exists);
-        self.index.push(_address);
-        self.entries[_address] = Member(true, self.index.length - 1, _name);
-        emit MemberAdded(_address, _name, self.index.length);
-    }
-    function remove(Data storage self, address _address) public {
-        require(self.entries[_address].exists);
-        uint removeIndex = self.entries[_address].index;
-        emit MemberRemoved(_address, self.entries[_address].name, self.index.length - 1);
-        uint lastIndex = self.index.length - 1;
-        address lastIndexAddress = self.index[lastIndex];
-        self.index[removeIndex] = lastIndexAddress;
-        self.entries[lastIndexAddress].index = removeIndex;
-        delete self.entries[_address];
-        if (self.index.length > 0) {
-            self.index.length--;
-        }
-    }
-    function setName(Data storage self, address memberAddress, string memory _name) public {
-        Member storage member = self.entries[memberAddress];
-        require(member.exists);
-        emit MemberNameUpdated(memberAddress, member.name, _name);
-        member.name = _name;
-    }
-    function length(Data storage self) public view returns (uint) {
-        return self.index.length;
-    }
-}
 
 // ----------------------------------------------------------------------------
 // Ballot contract -  Allows for one or many ballots to be run
@@ -83,8 +16,8 @@ library Members {
 contract FluxBallot is Owned {   // should be operated
     using Members for Members.Data;
 
-    MiMC public mimc;             // not public, for testing only
-    Verifier public verifier;     // not public
+    MiMCInterface public mimc;             // not public, for testing only
+    VerifierInterface public verifier;     // not public
     Members.Data public members;  // not public
 
     struct Vote {
@@ -118,10 +51,10 @@ contract FluxBallot is Owned {   // should be operated
 
     // Owner functions
     function setMiMC(address _mimc) public onlyOwner {
-      mimc = MiMC(_mimc);
+      mimc = MiMCInterface(_mimc);
     }
     function setVerifier(address _verifier) public onlyOwner {
-      verifier = Verifier(_verifier);
+      verifier = VerifierInterface(_verifier);
     }
 
     // Member functions
