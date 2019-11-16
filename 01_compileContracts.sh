@@ -9,4 +9,4 @@
 
 
 
-brownie run scripts/deploy_zk_flux_ballot.py
+brownie compile
